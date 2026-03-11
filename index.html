@@ -397,9 +397,10 @@
       <div class="corner corner-bl"></div>
       <div class="corner corner-br"></div>
       <div class="scan-line-anim" id="scanLine"></div>
-      <video class="azul-video" id="azulVideo" autoplay loop muted playsinline>
-        <source src="https://maximumreality.github.io/diagnostic/form.MP4" type="video/mp4">
-      </video>
+      <video class="azul-video" id="azulVideo" autoplay loop playsinline>
+  <source src="form.MP4" type="video/mp4">
+</video>
+
     </div>
 
     <div class="azul-diag">
@@ -765,8 +766,22 @@ function setAzulMode(mode) {
   const scanLine = document.getElementById('scanLine');
   const alertBanner = document.getElementById('alertBanner');
 
-  video.querySelector('source').src = VIDEO_SRCS[mode];
-  video.load(); video.play();
+  // Point to the correct lowercase file paths
+  video.src = VIDEO_SRCS[mode]; 
+  
+  // FORCE UNMUTE: Mobile browsers need this explicitly set after changing src
+  video.muted = false; 
+  video.volume = 1.0; 
+  
+  video.load(); 
+  
+  // Play with a catch for the initial browser "User Gesture" requirement
+  video.play().catch(error => {
+    console.log("Audio waiting for first user interaction.");
+    // If blocked, we fall back to muted so the video at least plays visually
+    video.muted = true;
+    video.play();
+  });
 
   const cfg = {
     normal:   ['NOMINAL',  'state-idle'],
