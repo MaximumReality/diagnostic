@@ -97,6 +97,19 @@
     letter-spacing: 2px;
     color: var(--text-dim);
   }
+  .header-home {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-decoration: none;
+  margin-left: 14px;
+  transition: all 0.2s;
+}
+
+.header-home:hover {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+}
 
   .status-dot {
     width: 8px; height: 8px;
@@ -400,7 +413,9 @@
     <span>UNIT ID: AZ-4.7</span>
     <span>SEC: ALPHA</span>
   </div>
+  <div style="display:flex;align-items:center;gap:14px;">
   <div class="header-time" id="clock">--:--:--</div>
+  <a href="https://maximumreality.xyz/" class="header-home">HOME</a>
 </div>
 
 <div class="terminal">
