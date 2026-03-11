@@ -397,7 +397,7 @@
       <div class="corner corner-bl"></div>
       <div class="corner corner-br"></div>
       <div class="scan-line-anim" id="scanLine"></div>
-      <video class="azul-video" id="azulVideo" autoplay loop playsinline>
+      <video class="azul-video" id="azulVideo" autoplay playsinline>
   <source src="form.MP4" type="video/mp4">
 </video>
 
@@ -1049,6 +1049,16 @@ buildCups(); drawECG();
 addLog('AZUL DIAGNOSTIC TERMINAL v4.7 ONLINE', 'success');
 addLog('BIOMETRIC SENSORS CALIBRATED', 'success');
 addLog('AWAITING PATIENT DATA INPUT...', '');
+  const videoEl = document.getElementById('azulVideo');
+
+videoEl.onended = () => {
+  // If he just finished a scan or an alert, 
+  // we might want him to go back to the 'waiting' state video
+  if (state.azulMode !== 'waiting') {
+    setAzulMode('waiting');
+  }
+};
+
 </script>
 </body>
 </html>
