@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AZUL // MEDICAL DIAGNOSTIC TERMINAL v4.7</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --neon-blue: #00d4ff;
+    --neon-cyan: #00ffea;
+    --neon-red: #ff2d55;
+    --neon-yellow: #ffe600;
+    --neon-green: #00ff88;
+    --bg-deep: #010812;
+    --bg-panel: #020f1e;
+    --bg-card: #041628;
+    --border-glow: rgba(0,212,255,0.3);
+    --text-dim: rgba(0,212,255,0.5);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--neon-blue);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border-glow);
+    background: rgba(2,15,30,0.97);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .header-logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: 4px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 20px var(--neon-cyan), 0 0 40px rgba(0,255,234,0.3);
+  }
+
+  .header-logo span { color: var(--neon-blue); }
+
+  .header-status {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--neon-green);
+    box-shadow: 0 0 8px var(--neon-green);
+    display: inline-block;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .header-time { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--neon-blue); }
+
+  .terminal {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    min-height: calc(100vh - 52px);
+  }
+
+  .azul-panel {
+    border-right: 1px solid var(--border-glow);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .azul-video-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 9/16;
+    max-height: 440px;
+    background: #000;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .azul-video-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 60%, rgba(0,212,255,0.06) 80%, var(--bg-panel) 100%);
+    pointer-events: none;
+  }
+
+  .corner { position: absolute; width: 20px; height: 20px; z-index: 10; }
+  .corner-tl { top: 8px; left: 8px; border-top: 2px solid var(--neon-cyan); border-left: 2px solid var(--neon-cyan); }
+  .corner-tr { top: 8px; right: 8px; border-top: 2px solid var(--neon-cyan); border-right: 2px solid var(--neon-cyan); }
+  .corner-bl { bottom: 8px; left: 8px; border-bottom: 2px solid var(--neon-cyan); border-left: 2px solid var(--neon-cyan); }
+  .corner-br { bottom: 8px; right: 8px; border-bottom: 2px solid var(--neon-cyan); border-right: 2px solid var(--neon-cyan); }
+
+  .azul-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .scan-line-anim {
+    position: absolute;
+    left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-blue), var(--neon-cyan), transparent);
+    box-shadow: 0 0 20px var(--neon-cyan), 0 0 40px rgba(0,212,255,0.6);
+    top: 0;
+    display: none;
+    z-index: 10;
+    animation: scandown 1.4s linear infinite;
+  }
+
+  @keyframes scandown { 0%{top:0%} 100%{top:100%} }
+  .scan-line-anim.active { display: block; }
+
+  .azul-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-glow);
+    font-size: 9px;
+    letter-spacing: 2px;
+  }
+
+  .azul-id { font-family: 'Orbitron', monospace; font-weight: 700; font-size: 12px; color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+
+  .azul-state-badge { padding: 3px 10px; border: 1px solid currentColor; font-size: 9px; letter-spacing: 2px; font-family: 'Orbitron', monospace; transition: all 0.3s; }
+
+  .state-idle { color: var(--neon-green); border-color: var(--neon-green); text-shadow: 0 0 8px var(--neon-green); }
+  .state-scanning { color: var(--neon-yellow); border-color: var(--neon-yellow); text-shadow: 0 0 8px var(--neon-yellow); animation: blink 0.5s infinite; }
+  .state-alert { color: var(--neon-red); border-color: var(--neon-red); text-shadow: 0 0 8px var(--neon-red); animation: blink 0.3s infinite; }
+  .state-waiting { color: var(--neon-blue); border-color: var(--neon-blue); text-shadow: 0 0 8px var(--neon-blue); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  .azul-diag { padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+
+  .diag-label { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); margin-bottom: 6px; }
+
+  .vital-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(0,212,255,0.08);
+  }
+
+  .vital-icon { font-size: 14px; width: 18px; text-align: center; }
+  .vital-info { flex: 1; }
+  .vital-name { font-size: 8px; letter-spacing: 2px; color: var(--text-dim); }
+  .vital-value { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--neon-cyan); }
+
+  .vital-bar-wrap { width: 70px; height: 4px; background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); overflow: hidden; }
+  .vital-bar-fill { height: 100%; background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan)); box-shadow: 0 0 8px var(--neon-cyan); transition: width 0.8s ease; }
+  .vital-bar-fill.warn { background: linear-gradient(90deg, var(--neon-yellow), #ff9900); }
+  .vital-bar-fill.danger { background: linear-gradient(90deg, var(--neon-red), #ff6b00); }
+
+  .azul-dialogue {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border-glow);
+    background: rgba(0,212,255,0.02);
+    min-height: 72px;
+  }
+
+  .dialogue-tag { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); margin-bottom: 6px; }
+
+  .dialogue-text { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; color: var(--neon-cyan); line-height: 1.5; min-height: 40px; }
+
+  .typing-cursor { display: inline-block; width: 7px; height: 13px; background: var(--neon-cyan); animation: blink 0.7s infinite; vertical-align: middle; margin-left: 2px; }
+
+  .right-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+  .tab-bar { display: flex; border-bottom: 1px solid var(--border-glow); background: var(--bg-panel); }
+
+  .tab { padding: 12px 20px; font-size: 9px; letter-spacing: 3px; font-family: 'Orbitron', monospace; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; border-right: 1px solid rgba(0,212,255,0.08); }
+  .tab:hover { color: var(--neon-blue); background: rgba(0,212,255,0.03); }
+  .tab.active { color: var(--neon-cyan); border-bottom-color: var(--neon-cyan); background: rgba(0,212,255,0.04); text-shadow: 0 0 10px var(--neon-cyan); }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; padding: 18px; scrollbar-width: thin; scrollbar-color: var(--border-glow) transparent; }
+  .tab-content.active { display: block; }
+
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .section-title { font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 4px; color: var(--neon-blue); white-space: nowrap; }
+  .section-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-glow), transparent); }
+
+  .vitals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+
+  .vital-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .vital-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--neon-blue); box-shadow: 0 0 8px var(--neon-blue); }
+  .vital-card:hover { border-color: var(--neon-cyan); background: rgba(0,212,255,0.04); transform: translateY(-1px); }
+
+  .vc-label { font-size: 8px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; }
+  .vc-value { font-family: 'Orbitron', monospace; font-size: 26px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+  .vc-unit { font-size: 9px; color: var(--text-dim); }
+  .vc-trend { font-size: 9px; margin-top: 8px; }
+  .trend-up { color: var(--neon-green); }
+  .trend-down { color: var(--neon-red); }
+  .trend-stable { color: var(--neon-yellow); }
+
+  .waveform-container { background: var(--bg-card); border: 1px solid var(--border-glow); padding: 14px; margin-bottom: 14px; }
+  .waveform-canvas { width: 100%; height: 60px; display: block; }
+
+  .metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+  .metric-input-group { background: var(--bg-card); border: 1px solid var(--border-glow); padding: 12px; }
+  .metric-label { font-size: 8px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 7px; }
+
+  .metric-input { width: 100%; background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.2); color: var(--neon-cyan); padding: 8px 10px; font-family: 'Share Tech Mono', monospace; font-size: 15px; outline: none; transition: all 0.2s; }
+  .metric-input:focus { border-color: var(--neon-cyan); background: rgba(0,212,255,0.07); box-shadow: 0 0 10px rgba(0,212,255,0.15); }
+  .metric-input::placeholder { color: var(--text-dim); }
+
+  .scan-trigger-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(0,255,234,0.04));
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    cursor: pointer;
+    text-shadow: 0 0 10px var(--neon-cyan);
+    box-shadow: 0 0 20px rgba(0,212,255,0.1), inset 0 0 20px rgba(0,212,255,0.04);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    margin-top: 14px;
+  }
+
+  .scan-trigger-btn::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -60%;
+    width: 40%; height: 200%;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.12), transparent);
+    transform: skewX(-20deg);
+    animation: shimmer 3s linear infinite;
+  }
+
+  @keyframes shimmer { 0%{left:-60%} 100%{left:120%} }
+
+  .scan-trigger-btn:hover { background: rgba(0,212,255,0.12); box-shadow: 0 0 35px rgba(0,212,255,0.3), inset 0 0 25px rgba(0,212,255,0.08); }
+
+  .task-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+
+  .task-input { flex: 1; background: rgba(0,212,255,0.04); border: 1px solid var(--border-glow); color: var(--neon-cyan); padding: 10px 14px; font-family: 'Share Tech Mono', monospace; font-size: 13px; outline: none; transition: all 0.2s; }
+  .task-input:focus { border-color: var(--neon-cyan); background: rgba(0,212,255,0.07); }
+  .task-input::placeholder { color: var(--text-dim); }
+
+  .task-btn { padding: 10px 16px; background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 2px; cursor: pointer; transition: all 0.2s; text-shadow: 0 0 8px var(--neon-cyan); white-space: nowrap; }
+  .task-btn:hover { background: rgba(0,212,255,0.08); box-shadow: 0 0 12px rgba(0,212,255,0.25); }
+  .task-btn.danger { border-color: var(--neon-red); color: var(--neon-red); text-shadow: 0 0 8px var(--neon-red); }
+  .task-btn.danger:hover { background: rgba(255,45,85,0.08); }
+
+  .task-list { display: flex; flex-direction: column; gap: 5px; }
+
+  .task-item { display: flex; align-items: center; gap: 10px; padding: 11px 12px; background: var(--bg-card); border: 1px solid var(--border-glow); border-left: 3px solid var(--neon-blue); transition: all 0.3s; }
+  .task-item.done { border-left-color: var(--neon-green); opacity: 0.55; }
+  .task-item.done .task-text { text-decoration: line-through; color: var(--text-dim); }
+  .task-item:hover { border-color: var(--neon-cyan); }
+
+  .task-check { width: 18px; height: 18px; border: 1px solid var(--neon-blue); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  .task-check.checked { background: var(--neon-green); border-color: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+  .task-check::after { content: '✓'; font-size: 11px; color: #000; display: none; }
+  .task-check.checked::after { display: block; }
+
+  .task-text { flex: 1; font-size: 12px; color: var(--neon-blue); }
+
+  .task-priority { font-size: 8px; letter-spacing: 2px; padding: 2px 7px; border: 1px solid; font-family: 'Orbitron', monospace; }
+  .priority-high { color: var(--neon-red); border-color: var(--neon-red); }
+  .priority-med { color: var(--neon-yellow); border-color: var(--neon-yellow); }
+  .priority-low { color: var(--neon-green); border-color: var(--neon-green); }
+
+  .task-del { background: none; border: none; color: rgba(255,45,85,0.35); cursor: pointer; font-size: 13px; padding: 2px 5px; transition: all 0.2s; }
+  .task-del:hover { color: var(--neon-red); text-shadow: 0 0 8px var(--neon-red); }
+
+  .rings-row { display: flex; gap: 20px; justify-content: center; margin: 16px 0; }
+  .ring-wrap { text-align: center; }
+  .ring-label { font-size: 8px; letter-spacing: 2px; color: var(--text-dim); margin-top: 5px; }
+
+  .water-tracker { background: var(--bg-card); border: 1px solid var(--border-glow); padding: 18px; margin-bottom: 14px; position: relative; }
+  .water-tracker::before { content: ''; position: absolute; top: 0; left: 0; width: 2px; height: 100%; background: linear-gradient(180deg, var(--neon-cyan), transparent); }
+
+  .water-cups { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0; }
+
+  .cup { width: 38px; height: 46px; border: 2px solid rgba(0,212,255,0.25); border-radius: 0 0 4px 4px; background: rgba(0,212,255,0.04); cursor: pointer; position: relative; overflow: hidden; transition: all 0.3s; }
+  .cup::before { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 0; background: linear-gradient(0deg, var(--neon-cyan), rgba(0,212,255,0.6)); box-shadow: 0 0 12px var(--neon-cyan); transition: height 0.5s cubic-bezier(0.4,0,0.2,1); }
+  .cup.filled { border-color: var(--neon-cyan); }
+  .cup.filled::before { height: 100%; }
+  .cup:hover { border-color: var(--neon-blue); transform: scale(1.08); }
+  .cup-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 8px; letter-spacing: 1px; z-index: 1; font-family: 'Orbitron', monospace; pointer-events: none; }
+
+  .water-readout { font-family: 'Orbitron', monospace; font-size: 42px; font-weight: 900; color: var(--neon-cyan); text-shadow: 0 0 25px var(--neon-cyan); }
+
+  .log-panel { background: var(--bg-card); border: 1px solid var(--border-glow); padding: 14px; font-size: 11px; line-height: 1.9; max-height: 500px; overflow-y: auto; scrollbar-width: thin; }
+  .log-entry { display: flex; gap: 10px; }
+  .log-time { color: var(--text-dim); flex-shrink: 0; }
+  .log-msg { color: rgba(0,212,255,0.7); }
+  .log-msg.warn { color: var(--neon-yellow); }
+  .log-msg.danger { color: var(--neon-red); }
+  .log-msg.success { color: var(--neon-green); }
+
+  .alert-banner { display: none; background: rgba(255,45,85,0.08); border-bottom: 1px solid var(--neon-red); padding: 10px 16px; font-size: 10px; letter-spacing: 3px; color: var(--neon-red); text-shadow: 0 0 10px var(--neon-red); animation: blink 1s infinite; text-align: center; font-family: 'Orbitron', monospace; }
+  .alert-banner.visible { display: block; }
+
+  @keyframes glitch { 0%,100%{transform:none;filter:none} 20%{transform:translate(-2px,1px);filter:hue-rotate(60deg)} 40%{transform:translate(2px,-1px)} 60%{transform:translate(-1px,2px);filter:hue-rotate(-60deg)} 80%{transform:translate(1px,-2px)} }
+  .glitching { animation: glitch 0.35s steps(1) 3; }
+
+  select.task-input { cursor: pointer; }
+  select.task-input option { background: var(--bg-deep); }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-glow); }
+
+  @media (max-width: 860px) {
+    .terminal { grid-template-columns: 1fr; }
+    .azul-panel { border-right: none; border-bottom: 1px solid var(--border-glow); }
+    .azul-video-container { max-height: 300px; aspect-ratio: auto; }
+    .vitals-grid { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<div class="header">
+  <div class="header-logo">AZUL<span> // </span>MED-DIAG TERMINAL</div>
+  <div class="header-status">
+    <span><span class="status-dot"></span> SYSTEM ONLINE</span>
+    <span>UNIT ID: AZ-4.7</span>
+    <span>SEC: ALPHA</span>
+  </div>
+  <div class="header-time" id="clock">--:--:--</div>
+</div>
+
+<div class="terminal">
+
+  <!-- LEFT — AZUL -->
+  <div class="azul-panel">
+    <div class="azul-status-bar">
+      <div class="azul-id">AZUL-AI</div>
+      <div class="azul-state-badge state-waiting" id="stateTag">STANDBY</div>
+      <div style="font-size:9px;color:var(--text-dim)">BUILD 4.7.2</div>
+    </div>
+
+    <div class="azul-video-container">
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="scan-line-anim" id="scanLine"></div>
+      <video class="azul-video" id="azulVideo" autoplay loop muted playsinline>
+        <source src="https://maximumreality.github.io/diagnostic/form.MP4" type="video/mp4">
+      </video>
+    </div>
+
+    <div class="azul-diag">
+      <div class="diag-label">▸ SUBJECT VITALS OVERVIEW</div>
+      <div class="vital-row">
+        <div class="vital-icon">💧</div>
+        <div class="vital-info">
+          <div class="vital-name">HYDRATION</div>
+          <div class="vital-value" id="hydVal">0 / 8 CUPS</div>
+        </div>
+        <div class="vital-bar-wrap"><div class="vital-bar-fill danger" id="hydBar" style="width:0%"></div></div>
+      </div>
+      <div class="vital-row">
+        <div class="vital-icon">✓</div>
+        <div class="vital-info">
+          <div class="vital-name">TASK COMPLETION</div>
+          <div class="vital-value" id="taskVal">0%</div>
+        </div>
+        <div class="vital-bar-wrap"><div class="vital-bar-fill danger" id="taskBar" style="width:0%"></div></div>
+      </div>
+      <div class="vital-row">
+        <div class="vital-icon">🏃</div>
+        <div class="vital-info">
+          <div class="vital-name">STEPS TODAY</div>
+          <div class="vital-value" id="stepsDisp">—</div>
+        </div>
+        <div class="vital-bar-wrap"><div class="vital-bar-fill" id="stepsBar" style="width:0%"></div></div>
+      </div>
+      <div class="vital-row" style="border-bottom:none">
+        <div class="vital-icon">😴</div>
+        <div class="vital-info">
+          <div class="vital-name">SLEEP</div>
+          <div class="vital-value" id="sleepDisp">—</div>
+        </div>
+        <div class="vital-bar-wrap"><div class="vital-bar-fill" id="sleepBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="azul-dialogue">
+      <div class="dialogue-tag">▸ AZUL SPEAKS</div>
+      <div class="dialogue-text" id="dialogueText">Fill out the forms and I'll be with you shortly.<span class="typing-cursor"></span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="alert-banner" id="alertBanner">⚠ ANOMALY DETECTED — FOLLOW UP WITH YOUR PHYSICIAN ⚠</div>
+
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('vitals')">VITALS</div>
+      <div class="tab" onclick="switchTab('tasks')">TASKS</div>
+      <div class="tab" onclick="switchTab('hydration')">HYDRATION</div>
+      <div class="tab" onclick="switchTab('intake')">INTAKE</div>
+      <div class="tab" onclick="switchTab('log')">SYS LOG</div>
+    </div>
+
+    <!-- VITALS TAB -->
+    <div class="tab-content active" id="tab-vitals">
+      <div class="section-header">
+        <div class="section-title">HEALTH METRICS</div>
+        <div class="section-line"></div>
+        <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);white-space:nowrap">ENTER YOUR DATA</div>
+      </div>
+
+      <div class="vitals-grid">
+        <div class="vital-card">
+          <div class="vc-label">HEART RATE</div>
+          <div class="vc-value" id="vc-hr" style="color:var(--neon-red)">—</div>
+          <div class="vc-unit">BPM</div>
+          <div class="vc-trend" id="vc-hr-t">—</div>
+        </div>
+        <div class="vital-card">
+          <div class="vc-label">BLOOD PRESSURE</div>
+          <div class="vc-value" id="vc-bp" style="color:var(--neon-cyan);font-size:18px">—</div>
+          <div class="vc-unit">mmHg</div>
+          <div class="vc-trend" id="vc-bp-t">—</div>
+        </div>
+        <div class="vital-card">
+          <div class="vc-label">BODY TEMP</div>
+          <div class="vc-value" id="vc-temp" style="color:var(--neon-yellow)">—</div>
+          <div class="vc-unit">°F</div>
+          <div class="vc-trend" id="vc-temp-t">—</div>
+        </div>
+        <div class="vital-card">
+          <div class="vc-label">WEIGHT</div>
+          <div class="vc-value" id="vc-weight" style="color:var(--neon-green)">—</div>
+          <div class="vc-unit">LBS</div>
+          <div class="vc-trend" id="vc-weight-t">—</div>
+        </div>
+        <div class="vital-card">
+          <div class="vc-label">O₂ SATURATION</div>
+          <div class="vc-value" id="vc-o2" style="color:var(--neon-blue)">—</div>
+          <div class="vc-unit">%</div>
+          <div class="vc-trend" id="vc-o2-t">—</div>
+        </div>
+        <div class="vital-card">
+          <div class="vc-label">STRESS LEVEL</div>
+          <div class="vc-value" id="vc-stress" style="color:var(--neon-yellow)">—</div>
+          <div class="vc-unit">/ 10</div>
+          <div class="vc-trend" id="vc-stress-t">—</div>
+        </div>
+      </div>
+
+      <div class="waveform-container">
+        <div class="diag-label" style="margin-bottom:10px">▸ ECG SIMULATION</div>
+        <canvas class="waveform-canvas" id="ecgCanvas"></canvas>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">INPUT READINGS</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-input-group">
+          <div class="metric-label">HEART RATE (BPM)</div>
+          <input type="number" class="metric-input" id="inp-hr" placeholder="72" min="40" max="200">
+        </div>
+        <div class="metric-input-group">
+          <div class="metric-label">BLOOD PRESSURE</div>
+          <input type="text" class="metric-input" id="inp-bp" placeholder="120/80">
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-input-group">
+          <div class="metric-label">BODY TEMP (°F)</div>
+          <input type="number" class="metric-input" id="inp-temp" placeholder="98.6" step="0.1">
+        </div>
+        <div class="metric-input-group">
+          <div class="metric-label">WEIGHT (LBS)</div>
+          <input type="number" class="metric-input" id="inp-weight" placeholder="150">
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-input-group">
+          <div class="metric-label">O₂ SATURATION (%)</div>
+          <input type="number" class="metric-input" id="inp-o2" placeholder="98" min="80" max="100">
+        </div>
+        <div class="metric-input-group">
+          <div class="metric-label">STRESS LEVEL (1-10)</div>
+          <input type="number" class="metric-input" id="inp-stress" placeholder="3" min="1" max="10">
+        </div>
+      </div>
+
+      <button class="scan-trigger-btn" onclick="runScan()">
+        ⬡ INITIATE DIAGNOSTIC SCAN ⬡
+      </button>
+    </div>
+
+    <!-- TASKS TAB -->
+    <div class="tab-content" id="tab-tasks">
+      <div class="section-header">
+        <div class="section-title">MISSION OBJECTIVES</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="rings-row">
+        <div class="ring-wrap">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(0,212,255,0.1)" stroke-width="6"/>
+            <circle cx="40" cy="40" r="32" fill="none" stroke="var(--neon-cyan)" stroke-width="6" stroke-dasharray="201" stroke-dashoffset="201" stroke-linecap="round" transform="rotate(-90 40 40)" id="taskRing" style="transition:stroke-dashoffset 1s ease"/>
+            <text x="40" y="44" text-anchor="middle" fill="var(--neon-cyan)" font-family="Orbitron,monospace" font-size="14" font-weight="700" id="taskRingText">0%</text>
+          </svg>
+          <div class="ring-label">COMPLETION</div>
+        </div>
+        <div class="ring-wrap">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,45,85,0.1)" stroke-width="6"/>
+            <circle cx="40" cy="40" r="32" fill="none" stroke="var(--neon-red)" stroke-width="6" stroke-dasharray="201" stroke-dashoffset="201" stroke-linecap="round" transform="rotate(-90 40 40)" id="urgentRing" style="transition:stroke-dashoffset 1s ease"/>
+            <text x="40" y="44" text-anchor="middle" fill="var(--neon-red)" font-family="Orbitron,monospace" font-size="14" font-weight="700" id="urgentRingText">0</text>
+          </svg>
+          <div class="ring-label">HIGH PRIORITY</div>
+        </div>
+        <div class="ring-wrap">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(0,255,136,0.1)" stroke-width="6"/>
+            <circle cx="40" cy="40" r="32" fill="none" stroke="var(--neon-green)" stroke-width="6" stroke-dasharray="201" stroke-dashoffset="201" stroke-linecap="round" transform="rotate(-90 40 40)" id="doneRing" style="transition:stroke-dashoffset 1s ease"/>
+            <text x="40" y="44" text-anchor="middle" fill="var(--neon-green)" font-family="Orbitron,monospace" font-size="14" font-weight="700" id="doneRingText">0</text>
+          </svg>
+          <div class="ring-label">COMPLETED</div>
+        </div>
+      </div>
+
+      <div class="task-input-row">
+        <input type="text" class="task-input" id="taskInput" placeholder="ENTER OBJECTIVE..." onkeydown="if(event.key==='Enter')addTask()">
+        <select class="task-input" id="taskPriority" style="max-width:110px">
+          <option value="high">HIGH</option>
+          <option value="med" selected>MEDIUM</option>
+          <option value="low">LOW</option>
+        </select>
+        <button class="task-btn" onclick="addTask()">+ ADD</button>
+      </div>
+
+      <div class="task-list" id="taskList">
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:2px;text-align:center;padding:30px">NO ACTIVE OBJECTIVES — ADD A TASK ABOVE</div>
+      </div>
+    </div>
+
+    <!-- HYDRATION TAB -->
+    <div class="tab-content" id="tab-hydration">
+      <div class="section-header">
+        <div class="section-title">HYDRATION MATRIX</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div style="text-align:center;margin-bottom:16px">
+        <div class="diag-label">DAILY WATER INTAKE</div>
+        <div class="water-readout" id="waterReadout">0.0 L</div>
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:4px" id="waterSubtext">TAP CUPS TO FILL</div>
+      </div>
+
+      <div style="background:rgba(0,212,255,0.04);border:1px solid var(--border-glow);height:10px;margin-bottom:16px;position:relative">
+        <div id="waterProgress" style="height:100%;width:0%;background:linear-gradient(90deg,var(--neon-blue),var(--neon-cyan));box-shadow:0 0 12px var(--neon-cyan);transition:width 0.5s ease"></div>
+        <div style="position:absolute;top:50%;right:8px;transform:translateY(-50%);font-size:8px;letter-spacing:2px;color:var(--text-dim)" id="waterPct">0%</div>
+      </div>
+
+      <div class="water-tracker">
+        <div class="diag-label">▸ CUP TRACKER (250ML EACH)</div>
+        <div class="water-cups" id="waterCups"></div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="task-btn" onclick="resetWater()">RESET</button>
+        </div>
+      </div>
+
+      <div class="metric-input-group">
+        <div class="metric-label">MANUAL ENTRY (ML)</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="number" class="metric-input" id="manualWater" placeholder="500" style="flex:1">
+          <button class="task-btn" onclick="addManualWater()">LOG</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTAKE TAB -->
+    <div class="tab-content" id="tab-intake">
+      <div class="section-header">
+        <div class="section-title">BIOMETRIC INTAKE</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-input-group">
+          <div class="metric-label">SLEEP (HOURS)</div>
+          <input type="number" class="metric-input" id="inp-sleep" placeholder="7.5" step="0.5" min="0" max="24">
+        </div>
+        <div class="metric-input-group">
+          <div class="metric-label">STEPS TODAY</div>
+          <input type="number" class="metric-input" id="inp-steps" placeholder="8000">
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-input-group">
+          <div class="metric-label">CALORIES CONSUMED</div>
+          <input type="number" class="metric-input" id="inp-cal" placeholder="2000">
+        </div>
+        <div class="metric-input-group">
+          <div class="metric-label">EXERCISE (MIN)</div>
+          <input type="number" class="metric-input" id="inp-ex" placeholder="30">
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-input-group">
+          <div class="metric-label">MOOD (1-10)</div>
+          <input type="number" class="metric-input" id="inp-mood" placeholder="7" min="1" max="10">
+        </div>
+        <div class="metric-input-group">
+          <div class="metric-label">ENERGY LEVEL (1-10)</div>
+          <input type="number" class="metric-input" id="inp-energy" placeholder="7" min="1" max="10">
+        </div>
+      </div>
+
+      <button class="scan-trigger-btn" onclick="logIntake()">⬡ LOG INTAKE DATA ⬡</button>
+
+      <div class="vitals-grid" style="margin-top:16px" id="intakeSummary" hidden>
+        <div class="vital-card">
+          <div class="vc-label">SLEEP</div>
+          <div class="vc-value" id="sum-sleep" style="color:var(--neon-blue);font-size:22px">—</div>
+          <div class="vc-unit">HOURS</div>
+        </div>
+        <div class="vital-card">
+          <div class="vc-label">STEPS</div>
+          <div class="vc-value" id="sum-steps" style="color:var(--neon-green);font-size:18px">—</div>
+          <div class="vc-unit">STEPS</div>
+        </div>
+        <div class="vital-card">
+          <div class="vc-label">CALORIES</div>
+          <div class="vc-value" id="sum-cal" style="color:var(--neon-yellow);font-size:18px">—</div>
+          <div class="vc-unit">KCAL</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div class="tab-content" id="tab-log">
+      <div class="section-header">
+        <div class="section-title">SYSTEM LOG</div>
+        <div class="section-line"></div>
+        <button class="task-btn danger" onclick="clearLog()">CLEAR</button>
+      </div>
+      <div class="log-panel" id="sysLog"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const state = { waterCups: 8, waterFilled: 0, tasks: [], logs: [], azulMode: 'waiting' };
+
+// CLOCK
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+}
+setInterval(updateClock, 1000); updateClock();
+
+// TABS
+function switchTab(name) {
+  const names = ['vitals','tasks','hydration','intake','log'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// AZUL
+const VIDEO_SRCS = {
+  normal:   'https://maximumreality.github.io/diagnostic/normal.MP4',
+  scanning: 'https://maximumreality.github.io/diagnostic/scans.MP4',
+  alert:    'https://maximumreality.github.io/diagnostic/follow-up.MP4',
+  waiting:  'https://maximumreality.github.io/diagnostic/form.MP4',
+};
+
+const DIALOGUES = {
+  normal: [
+    "All systems nominal. Your vitals are within acceptable parameters.",
+    "Diagnostic complete. No anomalies detected in your biometric data.",
+    "Looking good. Maintain your current wellness protocol.",
+    "Systems clear. You are operating within normal range.",
+  ],
+  scanning: [
+    "Initiating deep scan. Hold still while I analyze your biometrics...",
+    "Scanning... Laser array calibrated. Cross-referencing data streams.",
+    "Processing your vitals. Quantum analysis underway...",
+    "Biometric sweep in progress. This will only take a moment.",
+  ],
+  alert: [
+    "Something's not right. I'm flagging anomalies in your readings.",
+    "Attention: One or more metrics fall outside normal ranges. Follow up with your physician.",
+    "Diagnostic flagged irregularities. Do not ignore these results.",
+    "Your data concerns me. Schedule a consultation immediately.",
+  ],
+  waiting: [
+    "Fill out the forms and I'll be with you shortly.",
+    "Please complete your intake data before we proceed.",
+    "I need your information to run a full diagnostic.",
+    "Awaiting your biometric inputs. Complete the forms to continue.",
+  ]
+};
+
+function setAzulMode(mode) {
+  if (state.azulMode === mode) return;
+  state.azulMode = mode;
+  const video = document.getElementById('azulVideo');
+  const stateTag = document.getElementById('stateTag');
+  const scanLine = document.getElementById('scanLine');
+  const alertBanner = document.getElementById('alertBanner');
+
+  video.querySelector('source').src = VIDEO_SRCS[mode];
+  video.load(); video.play();
+
+  const cfg = {
+    normal:   ['NOMINAL',  'state-idle'],
+    scanning: ['SCANNING', 'state-scanning'],
+    alert:    ['ALERT',    'state-alert'],
+    waiting:  ['STANDBY',  'state-waiting'],
+  };
+
+  stateTag.className = 'azul-state-badge ' + cfg[mode][1];
+  stateTag.textContent = cfg[mode][0];
+  scanLine.classList.toggle('active', mode === 'scanning');
+  alertBanner.classList.toggle('visible', mode === 'alert');
+
+  document.querySelector('.azul-panel').classList.add('glitching');
+  setTimeout(() => document.querySelector('.azul-panel').classList.remove('glitching'), 400);
+
+  const lines = DIALOGUES[mode];
+  typeDialogue(lines[Math.floor(Math.random() * lines.length)]);
+}
+
+function typeDialogue(text) {
+  const el = document.getElementById('dialogueText');
+  el.innerHTML = '';
+  let i = 0;
+  const iv = setInterval(() => {
+    el.innerHTML = text.slice(0, i) + '<span class="typing-cursor"></span>';
+    if (i++ >= text.length) clearInterval(iv);
+  }, 32);
+}
+
+// SCAN
+function runScan() {
+  const hr     = parseFloat(document.getElementById('inp-hr').value);
+  const temp   = parseFloat(document.getElementById('inp-temp').value);
+  const o2     = parseFloat(document.getElementById('inp-o2').value);
+  const stress = parseFloat(document.getElementById('inp-stress').value);
+  const bp     = document.getElementById('inp-bp').value;
+  const weight = parseFloat(document.getElementById('inp-weight').value);
+
+  setAzulMode('scanning');
+  addLog('SCAN INITIATED — analyzing biometrics...', 'warn');
+
+  setTimeout(() => {
+    let anomalies = [];
+    if (hr && (hr < 60 || hr > 100)) anomalies.push('HEART RATE');
+    if (temp && (temp < 97 || temp > 99)) anomalies.push('BODY TEMPERATURE');
+    if (o2 && o2 < 95) anomalies.push('O₂ SATURATION');
+    if (stress && stress > 7) anomalies.push('ELEVATED STRESS');
+
+    if (hr) { document.getElementById('vc-hr').textContent = hr; document.getElementById('vc-hr-t').innerHTML = hr > 100 ? '<span class="trend-down">▲ ELEVATED</span>' : hr < 60 ? '<span class="trend-down">▼ LOW</span>' : '<span class="trend-up">✓ NORMAL</span>'; }
+    if (bp) { document.getElementById('vc-bp').textContent = bp; document.getElementById('vc-bp-t').innerHTML = '<span class="trend-stable">— LOGGED</span>'; }
+    if (temp) { document.getElementById('vc-temp').textContent = temp; document.getElementById('vc-temp-t').innerHTML = temp > 99 ? '<span class="trend-down">▲ ELEVATED</span>' : '<span class="trend-up">✓ NORMAL</span>'; }
+    if (weight) { document.getElementById('vc-weight').textContent = weight; document.getElementById('vc-weight-t').innerHTML = '<span class="trend-stable">— LOGGED</span>'; }
+    if (o2) { document.getElementById('vc-o2').textContent = o2; document.getElementById('vc-o2-t').innerHTML = o2 < 95 ? '<span class="trend-down">▼ LOW</span>' : '<span class="trend-up">✓ NORMAL</span>'; }
+    if (stress) { document.getElementById('vc-stress').textContent = stress; document.getElementById('vc-stress-t').innerHTML = stress > 7 ? '<span class="trend-down">⚠ HIGH</span>' : stress < 4 ? '<span class="trend-up">✓ LOW</span>' : '<span class="trend-stable">— MODERATE</span>'; }
+
+    addLog(`SCAN COMPLETE — ${anomalies.length} anomal${anomalies.length === 1 ? 'y' : 'ies'} detected`, anomalies.length ? 'danger' : 'success');
+
+    setTimeout(() => {
+      if (anomalies.length > 0) {
+        setAzulMode('alert');
+        anomalies.forEach(a => addLog('⚠ ANOMALY: ' + a, 'danger'));
+      } else if (hr || temp || o2 || stress || bp || weight) {
+        setAzulMode('normal');
+        addLog('ALL METRICS WITHIN NORMAL RANGE', 'success');
+      } else {
+        setAzulMode('waiting');
+        addLog('NO DATA ENTERED — PLEASE FILL FORM', 'warn');
+      }
+    }, 400);
+  }, 3200);
+}
+
+// TASKS
+function addTask() {
+  const input = document.getElementById('taskInput');
+  const priority = document.getElementById('taskPriority').value;
+  const text = input.value.trim();
+  if (!text) return;
+  state.tasks.push({ id: Date.now(), text, priority, done: false });
+  input.value = '';
+  renderTasks();
+  addLog('TASK LOGGED: ' + text.toUpperCase(), 'success');
+  updateTaskVitals();
+  if (state.tasks.filter(t=>!t.done).length >= 3 && state.azulMode === 'waiting') return;
+}
+
+function toggleTask(id) {
+  const t = state.tasks.find(t => t.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  renderTasks(); updateTaskVitals();
+  addLog(t.done ? '✓ COMPLETED: ' + t.text.toUpperCase() : '↩ REOPENED: ' + t.text.toUpperCase(), t.done ? 'success' : 'warn');
+  const pct = getTaskPct();
+  if (pct === 100 && state.tasks.length > 0) setAzulMode('normal');
+}
+
+function deleteTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  renderTasks(); updateTaskVitals();
+}
+
+function getTaskPct() {
+  if (!state.tasks.length) return 0;
+  return Math.round(state.tasks.filter(t=>t.done).length / state.tasks.length * 100);
+}
+
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  if (!state.tasks.length) {
+    list.innerHTML = '<div style="font-size:10px;color:var(--text-dim);letter-spacing:2px;text-align:center;padding:30px">NO ACTIVE OBJECTIVES — ADD A TASK ABOVE</div>';
+    return;
+  }
+  const pLabels = { high: 'HIGH', med: 'MEDIUM', low: 'LOW' };
+  const pClass  = { high: 'priority-high', med: 'priority-med', low: 'priority-low' };
+  list.innerHTML = state.tasks.map(t => `
+    <div class="task-item ${t.done?'done':''}">
+      <div class="task-check ${t.done?'checked':''}" onclick="toggleTask(${t.id})"></div>
+      <div class="task-text">${t.text}</div>
+      <div class="task-priority ${pClass[t.priority]}">${pLabels[t.priority]}</div>
+      <button class="task-del" onclick="deleteTask(${t.id})">✕</button>
+    </div>`).join('');
+
+  const pct = getTaskPct(), total = state.tasks.length;
+  const done = state.tasks.filter(t=>t.done).length;
+  const high = state.tasks.filter(t=>t.priority==='high'&&!t.done).length;
+  const C = 201;
+  document.getElementById('taskRing').style.strokeDashoffset = C - (pct/100)*C;
+  document.getElementById('taskRingText').textContent = pct + '%';
+  document.getElementById('urgentRing').style.strokeDashoffset = C - Math.min(high/5,1)*C;
+  document.getElementById('urgentRingText').textContent = high;
+  document.getElementById('doneRing').style.strokeDashoffset = C - (total ? done/total : 0)*C;
+  document.getElementById('doneRingText').textContent = done;
+}
+
+function updateTaskVitals() {
+  const pct = getTaskPct();
+  document.getElementById('taskVal').textContent = pct + '%';
+  const bar = document.getElementById('taskBar');
+  bar.style.width = pct + '%';
+  bar.className = 'vital-bar-fill' + (pct < 30 ? ' danger' : pct < 60 ? ' warn' : '');
+}
+
+// WATER
+function buildCups() {
+  const c = document.getElementById('waterCups');
+  c.innerHTML = '';
+  for (let i = 0; i < state.waterCups; i++) {
+    const cup = document.createElement('div');
+    cup.className = 'cup' + (i < state.waterFilled ? ' filled' : '');
+    cup.innerHTML = `<div class="cup-label">${i < state.waterFilled ? '✓' : (i+1)}</div>`;
+    cup.onclick = () => { state.waterFilled = i < state.waterFilled ? i : i + 1; buildCups(); addLog('HYDRATION LOGGED: ' + state.waterFilled + '/' + state.waterCups + ' cups', 'success'); if (state.waterFilled >= state.waterCups) typeDialogue("Hydration goal reached. Excellent work maintaining fluid balance."); };
+    c.appendChild(cup);
+  }
+  updateWaterDisplay();
+}
+
+function updateWaterDisplay() {
+  const ml = state.waterFilled * 250;
+  const pct = Math.round(state.waterFilled / state.waterCups * 100);
+  document.getElementById('waterReadout').textContent = (ml/1000).toFixed(1) + ' L';
+  document.getElementById('waterProgress').style.width = pct + '%';
+  document.getElementById('waterPct').textContent = pct + '%';
+  document.getElementById('waterSubtext').textContent = pct >= 100 ? '✓ DAILY GOAL REACHED' : pct + '% OF DAILY GOAL';
+  document.getElementById('hydVal').textContent = state.waterFilled + ' / ' + state.waterCups + ' CUPS';
+  const bar = document.getElementById('hydBar');
+  bar.style.width = pct + '%';
+  bar.className = 'vital-bar-fill' + (pct < 30 ? ' danger' : pct < 60 ? ' warn' : '');
+}
+
+function resetWater() { state.waterFilled = 0; buildCups(); addLog('HYDRATION COUNTER RESET', 'warn'); }
+
+function addManualWater() {
+  const ml = parseInt(document.getElementById('manualWater').value);
+  if (!ml || ml <= 0) return;
+  state.waterFilled = Math.min(state.waterFilled + Math.round(ml/250), state.waterCups);
+  document.getElementById('manualWater').value = '';
+  buildCups();
+  addLog('MANUAL INTAKE LOGGED: ' + ml + 'ML', 'success');
+}
+
+// INTAKE
+function logIntake() {
+  const sleep = parseFloat(document.getElementById('inp-sleep').value);
+  const steps = parseInt(document.getElementById('inp-steps').value);
+  const cal   = parseInt(document.getElementById('inp-cal').value);
+  const mood  = parseInt(document.getElementById('inp-mood').value);
+
+  if (!sleep && !steps && !cal) { setAzulMode('waiting'); return; }
+
+  if (sleep) { document.getElementById('sleepDisp').textContent = sleep + 'H'; document.getElementById('sleepBar').style.width = Math.min(sleep/9*100,100) + '%'; document.getElementById('sum-sleep').textContent = sleep; }
+  if (steps) { document.getElementById('stepsDisp').textContent = steps.toLocaleString(); document.getElementById('stepsBar').style.width = Math.min(steps/10000*100,100) + '%'; document.getElementById('sum-steps').textContent = steps.toLocaleString(); }
+  if (cal)   document.getElementById('sum-cal').textContent = cal.toLocaleString();
+
+  document.getElementById('intakeSummary').hidden = false;
+  addLog('INTAKE LOGGED — sleep:' + (sleep||'—') + 'h steps:' + (steps||'—') + ' cal:' + (cal||'—'), 'success');
+
+  let issues = [];
+  if (sleep && sleep < 6) issues.push('insufficient sleep');
+  if (steps && steps < 5000) issues.push('low activity');
+  if (mood && mood < 4) issues.push('low mood');
+
+  if (issues.length) { setAzulMode('alert'); issues.forEach(i => addLog('⚠ CONCERN: ' + i.toUpperCase(), 'danger')); }
+  else setAzulMode('normal');
+}
+
+// LOG
+function addLog(msg, type='') {
+  const t = new Date().toTimeString().slice(0,8);
+  state.logs.unshift({ time: t, msg, type });
+  renderLog();
+}
+
+function renderLog() {
+  document.getElementById('sysLog').innerHTML = state.logs.slice(0,60).map(l =>
+    `<div class="log-entry"><span class="log-time">[${l.time}]</span><span class="log-msg ${l.type ? 'log-msg '+l.type : ''}">${l.msg}</span></div>`
+  ).join('');
+}
+
+function clearLog() { state.logs = []; renderLog(); }
+
+// ECG
+function drawECG() {
+  const canvas = document.getElementById('ecgCanvas');
+  if (!canvas || !canvas.offsetWidth) { requestAnimationFrame(drawECG); return; }
+  canvas.width = canvas.offsetWidth;
+  canvas.height = 60;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = 60;
+
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle = 'rgba(0,212,255,0.12)'; ctx.lineWidth = 0.5;
+  for (let x = 0; x < w; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 15) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+  const offset = (Date.now() / 8) % (w * 2);
+  ctx.beginPath(); ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#00d4ff'; ctx.shadowBlur = 8;
+
+  for (let x = 0; x < w; x++) {
+    const t = (x + offset) / 38;
+    const m = t % (Math.PI * 2);
+    let y;
+    if (m < 0.5) y = h/2;
+    else if (m < 0.7) y = h/2 - 5;
+    else if (m < 0.85) y = h/2 + 3;
+    else if (m < 1.0) y = h/2 - h*0.52;
+    else if (m < 1.15) y = h/2 + h*0.23;
+    else if (m < 1.3) y = h/2;
+    else if (m < 1.6) y = h/2 + 4 * Math.sin((m-1.3)*Math.PI/0.3);
+    else y = h/2;
+    x === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  const dotX = offset % w;
+  ctx.beginPath(); ctx.arc(dotX, h/2, 3, 0, Math.PI*2);
+  ctx.fillStyle = '#00ffea'; ctx.shadowColor = '#00ffea'; ctx.shadowBlur = 15; ctx.fill();
+
+  requestAnimationFrame(drawECG);
+}
+
+// INIT
+buildCups(); drawECG();
+addLog('AZUL DIAGNOSTIC TERMINAL v4.7 ONLINE', 'success');
+addLog('BIOMETRIC SENSORS CALIBRATED', 'success');
+addLog('AWAITING PATIENT DATA INPUT...', '');
+</script>
+</body>
+</html>
