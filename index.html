@@ -97,7 +97,15 @@
     letter-spacing: 2px;
     color: var(--text-dim);
   }
-  .header-home {
+  
+  .home-clock-wrapper {
+  display: flex;
+  flex-direction: column; /* stack vertically */
+  align-items: center;
+  gap: 2px; /* space between HOME and clock */
+}
+
+.header-home {
   color: var(--text-dim);
   font-size: 10px;
   letter-spacing: 2px;
@@ -108,6 +116,12 @@
 .header-home:hover {
   color: var(--neon-cyan);
   text-shadow: 0 0 6px var(--neon-cyan);
+}
+
+.header-time {
+  font-family: 'Orbitron', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
 }
 
   .status-dot {
@@ -412,10 +426,13 @@
     <span><span class="status-dot"></span> SYSTEM ONLINE</span>
     <span>UNIT ID: AZ-4.7</span>
     <span>SEC: ALPHA</span>
-    <a href="https://maximumreality.xyz/" class="header-home">HOME</a>
-  </div>
 
-  <div class="header-time" id="clock">--:--:--</div>
+    <div class="home-clock-wrapper">
+      <a href="https://maximumreality.xyz/" class="header-home">HOME</a>
+      <div class="header-time" id="clock">--:--:--</div>
+    </div>
+
+  </div>
 </div>
 
 <div class="terminal">
