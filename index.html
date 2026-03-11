@@ -98,17 +98,16 @@
     color: var(--text-dim);
   }
   .header-home {
+  color: var(--text-dim);
   font-size: 10px;
   letter-spacing: 2px;
-  color: var(--text-dim);
   text-decoration: none;
-  margin-left: 14px;
-  transition: all 0.2s;
+  transition: 0.2s;
 }
 
 .header-home:hover {
   color: var(--neon-cyan);
-  text-shadow: 0 0 8px var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
 }
 
   .status-dot {
@@ -408,14 +407,15 @@
 
 <div class="header">
   <div class="header-logo">AZUL<span> // </span>MED-DIAG TERMINAL</div>
+
   <div class="header-status">
     <span><span class="status-dot"></span> SYSTEM ONLINE</span>
     <span>UNIT ID: AZ-4.7</span>
     <span>SEC: ALPHA</span>
+    <a href="https://maximumreality.xyz/" class="header-home">HOME</a>
   </div>
-  <div style="display:flex;align-items:center;gap:14px;">
+
   <div class="header-time" id="clock">--:--:--</div>
-  <a href="https://maximumreality.xyz/" class="header-home">HOME</a>
 </div>
 
 <div class="terminal">
