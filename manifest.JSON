@@ -1,0 +1,32 @@
+{
+  "name": "AZUL // Medical Diagnostic Terminal",
+  "short_name": "AZUL DIAG",
+  "description": "A cyberpunk AI medical diagnostic terminal by Maximum Reality",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#010812",
+  "theme_color": "#010812",
+  "icons": [
+    {
+      "src": "https://maximumreality.github.io/diagnostic/IMG_6246.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://maximumreality.github.io/diagnostic/IMG_6246.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["health", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Run Scan",
+      "short_name": "Scan",
+      "description": "Go directly to vitals scan",
+      "url": "./"
+    }
+  ]
+}
