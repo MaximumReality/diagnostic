@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="https://js.puter.com/v2/"></script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AZUL // MEDICAL DIAGNOSTIC TERMINAL v4.7</title>
@@ -394,13 +396,37 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border-glow); }
 
-  @media (max-width: 860px) {
-    .terminal { grid-template-columns: 1fr; }
-    .azul-panel { border-right: none; border-bottom: 1px solid var(--border-glow); }
-    .azul-video-container { max-height: 300px; aspect-ratio: auto; }
-    .vitals-grid { grid-template-columns: repeat(2,1fr); }
+ @media (max-width: 860px) {
+  .terminal { grid-template-columns: 1fr; }
+  .azul-panel { border-right: none; border-bottom: 1px solid var(--border-glow); }
+  .azul-video-container { max-height: 300px; aspect-ratio: auto; }
+  .vitals-grid { grid-template-columns: repeat(2,1fr); }
+
+  .header {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 6px;
   }
-  
+
+  .header-logo {
+    font-size: 12px;
+    letter-spacing: 2px;
+    flex: 1;
+  }
+
+  .header-status {
+    display: none;
+  }
+
+  .header-time {
+    font-size: 11px;
+  }
+
+  .home-link {
+    font-size: 8px;
+    letter-spacing: 2px;
+  }
+}
 
 </style>
   </head>
@@ -853,7 +879,23 @@ function typeDialogue(text) {
   }, 32);
 }
 
-// SCAN
+async function getAzulResponse(anomalies, vitals) {
+  const prompt = `You are AZUL, a cold and clinical AI medical diagnostic unit inside a cyberpunk terminal. Speak in short, precise sentences. No warmth. Pure data. No greetings.
+Patient vitals: HR ${vitals.hr||'—'}bpm, BP ${vitals.bp||'—'}, Temp ${vitals.temp||'—'}°F, O2 ${vitals.o2||'—'}%, Stress ${vitals.stress||'—'}/10, Weight ${vitals.weight||'—'}lbs.
+${anomalies.length ? 'Anomalies flagged: ' + anomalies.join(', ') + '.' : 'No anomalies detected.'}
+Respond in 2-3 sentences max. Reference their actual numbers. Stay in character.`;
+
+  try {
+    typeDialogue("Analyzing biometric data...");
+    const response = await puter.ai.chat(prompt, { model: 'claude-sonnet-4-5' });
+    const text = response?.message?.content?.[0]?.text || response?.toString();
+    typeDialogue(text);
+  } catch(e) {
+    typeDialogue("Diagnostic network error. Manual review required.");
+    addLog('AI RESPONSE ERROR: ' + e.message, 'danger');
+  }
+}
+
 function runScan() {
   const hr     = parseFloat(document.getElementById('inp-hr').value);
   const temp   = parseFloat(document.getElementById('inp-temp').value);
@@ -885,9 +927,11 @@ function runScan() {
       if (anomalies.length > 0) {
         setAzulMode('alert');
         anomalies.forEach(a => addLog('⚠ ANOMALY: ' + a, 'danger'));
+        getAzulResponse(anomalies, {hr, bp, temp, weight, o2, stress});
       } else if (hr || temp || o2 || stress || bp || weight) {
         setAzulMode('normal');
         addLog('ALL METRICS WITHIN NORMAL RANGE', 'success');
+        getAzulResponse([], {hr, bp, temp, weight, o2, stress});
       } else {
         setAzulMode('waiting');
         addLog('NO DATA ENTERED — PLEASE FILL FORM', 'warn');
@@ -895,6 +939,7 @@ function runScan() {
     }, 400);
   }, 3200);
 }
+
 
 // TASKS
 function addTask() {
