@@ -257,6 +257,7 @@
       <div class="corner corner-bl"></div>
       <div class="corner corner-br"></div>
       <div class="scan-line-anim" id="scanLine"></div>
+      <img id="azulFallback" src="https://maximumreality.github.io/diagnostic/IMG_6246.png" alt="AZUL" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;">
       <video class="azul-video" id="azulVideo" autoplay playsinline>
         <source src="form.MP4" type="video/mp4">
       </video>
@@ -544,10 +545,9 @@ const DIALOGUES = {
 function setAzulMode(mode) {
   if (state.azulMode === mode) return;
   state.azulMode = mode;
-  const video = document.getElementById('azulVideo');
-  video.src = VIDEO_SRCS[mode];
-  video.muted = false; video.volume = 1.0; video.load();
-  video.play().catch(() => { video.muted = true; video.play(); });
+  videoEl.src = VIDEO_SRCS[mode];
+  videoEl.muted = false; videoEl.volume = 1.0; videoEl.load();
+  videoEl.play().catch(() => { videoEl.muted = true; videoEl.play(); });
   const cfg = { normal: ['NOMINAL','state-idle'], scanning: ['SCANNING','state-scanning'], alert: ['ALERT','state-alert'], waiting: ['STANDBY','state-waiting'] };
   document.getElementById('stateTag').className = 'azul-state-badge ' + cfg[mode][1];
   document.getElementById('stateTag').textContent = cfg[mode][0];
@@ -807,8 +807,28 @@ if ('serviceWorker' in navigator) {
     .catch(e => addLog('SW ERROR: ' + e.message, 'danger'));
 }
 
-// ==================== VIDEO ENDED ====================
-document.getElementById('azulVideo').onended = () => {
+// ==================== VIDEO FALLBACK ====================
+const videoEl = document.getElementById('azulVideo');
+const fallbackImg = document.getElementById('azulFallback');
+
+function showVideoFallback() {
+  videoEl.style.display = 'none';
+  fallbackImg.style.display = 'block';
+}
+function showVideo() {
+  videoEl.style.display = 'block';
+  fallbackImg.style.display = 'none';
+}
+
+videoEl.onerror = showVideoFallback;
+videoEl.onplaying = showVideo;
+
+// Catch stalled loads (e.g. offline, slow connection)
+videoEl.addEventListener('stalled', () => setTimeout(() => {
+  if (videoEl.readyState === 0) showVideoFallback();
+}, 4000));
+
+videoEl.onended = () => {
   if (state.azulMode !== 'waiting') setAzulMode('waiting');
 };
 
