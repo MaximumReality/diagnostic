@@ -249,7 +249,10 @@
     <div class="azul-status-bar">
       <div class="azul-id">AZUL-AI</div>
       <div class="azul-state-badge state-waiting" id="stateTag">STANDBY</div>
-      <div style="font-size:9px;color:var(--text-dim)">BUILD 4.7.2</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="voice-btn" id="videoMuteBtn" onclick="toggleVideoMute()" style="font-size:8px;padding:2px 8px">🔊 VID</button>
+        <span style="font-size:9px;color:var(--text-dim)">BUILD 4.7.2</span>
+      </div>
     </div>
     <div class="azul-video-container">
       <div class="corner corner-tl"></div>
@@ -480,6 +483,12 @@ function restoreUI() {
   if (i.steps) { document.getElementById('stepsDisp').textContent = parseInt(i.steps).toLocaleString(); document.getElementById('stepsBar').style.width = Math.min(i.steps/10000*100,100) + '%'; document.getElementById('sum-steps').textContent = parseInt(i.steps).toLocaleString(); }
   if (i.cal) { document.getElementById('sum-cal').textContent = parseInt(i.cal).toLocaleString(); document.getElementById('intakeSummary').hidden = false; }
   updateVoiceBtn();
+  // Restore video mute preference
+  if (state.videoMuted) {
+    videoEl.muted = true;
+    const btn = document.getElementById('videoMuteBtn');
+    if (btn) { btn.textContent = '🔇 VID'; btn.className = 'voice-btn'; }
+  }
 }
 
 // ==================== CLOCK ====================
@@ -546,7 +555,8 @@ function setAzulMode(mode) {
   if (state.azulMode === mode) return;
   state.azulMode = mode;
   videoEl.src = VIDEO_SRCS[mode];
-  videoEl.muted = false; videoEl.volume = 1.0; videoEl.load();
+  videoEl.muted = state.videoMuted || false;
+  videoEl.volume = 1.0; videoEl.load();
   videoEl.play().catch(() => { videoEl.muted = true; videoEl.play(); });
   const cfg = { normal: ['NOMINAL','state-idle'], scanning: ['SCANNING','state-scanning'], alert: ['ALERT','state-alert'], waiting: ['STANDBY','state-waiting'] };
   document.getElementById('stateTag').className = 'azul-state-badge ' + cfg[mode][1];
@@ -807,7 +817,18 @@ if ('serviceWorker' in navigator) {
     .catch(e => addLog('SW ERROR: ' + e.message, 'danger'));
 }
 
-// ==================== VIDEO FALLBACK ====================
+// ==================== VIDEO MUTE ====================
+function toggleVideoMute() {
+  state.videoMuted = !state.videoMuted;
+  videoEl.muted = state.videoMuted;
+  const btn = document.getElementById('videoMuteBtn');
+  btn.textContent = state.videoMuted ? '🔇 VID' : '🔊 VID';
+  btn.className = 'voice-btn' + (state.videoMuted ? '' : ' active');
+  addLog('VIDEO AUDIO: ' + (state.videoMuted ? 'MUTED' : 'UNMUTED'), state.videoMuted ? 'warn' : 'success');
+  saveState();
+}
+
+
 const videoEl = document.getElementById('azulVideo');
 const fallbackImg = document.getElementById('azulFallback');
 
